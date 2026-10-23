@@ -72,3 +72,24 @@ matrix df1(double t, matrix Y, matrix ud1, matrix ud2)
 	dY(2) = Fin / Y(1) * (Tin - Y(2)) + FAout / Y(1) * (TA - Y(2));
 	return dY;
 }
+
+matrix ff2T(matrix x, matrix ud1, matrix ud2)
+{
+	// x - wektor zmiennych decyzyjnych:
+	// x(0) = x1
+	// x(1) = x2
+	// 
+	// ud1, ud2 - dodatkowe argumenty,
+	// które nie są wykorzystywane w tej funkcji.
+
+	//Zmienna przechowująca wartość funkcji celu.
+	matrix y; 
+
+	// Funkcja testowa z konspektu:
+	//
+	// f(x1, x2) = x1^2 + x2^2 - cos(2.5*pi*x1) - cos(2.5*pi*x2) + 2
+	//
+	// M_PI - stała oznaczająca liczbę pi.
+	//
+	// Funkcja ma wiele minimów lokalnych.
+
