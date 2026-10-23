@@ -9,6 +9,7 @@ Data ostatniej modyfikacji: 15.09.2026
 *********************************************/
 
 #include"opt_alg.h"
+#include <iomanip>
 
 void lab0();
 void lab1();
@@ -300,9 +301,38 @@ void lab1()
 
 void lab2()
 {
+// Deklaracja parametrów optymalizacji:
+    // s       - początkowa długość kroku
+    // alphaHJ - współczynnik zmniejszania kroku w metodzie Hooke'a-Jeevesa
+    // alphaR  - współczynnik zwiększania kroku w metodzie Rosenbrocka
+    // beta    - współczynnik zmniejszania i odwracania kroku w metodzie Rosenbrocka
+    // epsilon - dokładność zakończenia optymalizacji
+    double s, alphaHJ, alphaR, beta, epsilon;
+    int Nmax; // Maksymalna liczba wywołań funkcji celu
 
+    // Obiekt przechowujący wynik optymalizacji:
+    // opt.x - znaleziony punkt, opt.y - wartość funkcji celu
+    solution opt;
+    // x0 - wektor punktu początkowego
+    // s0 - wektor początkowych kroków dla metody Rosenbrocka
+    matrix x0, s0;
+
+    if (0) // Funkcja testowa
+    {
+        s = 0.5; // Początkowa długość kroku
+        alphaHJ = 0.5; // Hooke-Jeeves: po nieudanym poszukiwaniu krok zmniejsza się o połowę
+        alphaR = 2; // Rosenbrock: po udanym ruchu krok zwiększa się dwukrotnie
+        beta = 0.5; // Rosenbrock: po nieudanym ruchu krok zmniejsza się o połowę
+                    // i zmienia znak, czyli kierunek
+        epsilon = 1e-3; // Dokładność optymalizacji: 0.001
+        Nmax = 1000; // Limit wywołań funkcji celu
+		s0 = matrix(2, 1, s); //Utworzenie wektora 2x1 zawierajacego poczatkowe kroki:
+		// s0 = [0.5; 0.5]
+		
+		//Losowanie punktu początkowego x0 = [x1; x2]
+		//
 }
-
+}
 void lab3()
 {
 
