@@ -299,15 +299,32 @@ void lab1()
 	int calls_lag_no_exp = solution::f_calls;
 	solution::clear_calls();
 
+	string fib_typ = (m2d(opt_fib_no_exp.y) < -0.5) ? "Minimum globalne" : "Minimum lokalne";
+
+	string lag_x_str = "Brak zbieznosci";
+	string lag_y_str = "Brak zbieznosci";
+	string lag_typ = "Brak zbieżności";
+
+	if (opt_lag_no_exp.flag == 1)
+	{
+		lag_x_str = to_csv_str(m2d(opt_lag_no_exp.x));
+		lag_y_str = to_csv_str(m2d(opt_lag_no_exp.y));
+		lag_typ = (m2d(opt_lag_no_exp.y) < -0.5) ? "Minimum globalne" : "Minimum lokalne";
+	}
+
 	ofstream plik_bez_eksp("bez_ekspansji.csv");
-	plik_bez_eksp << "Metoda;x*;y*;Liczba wywolan;Flaga zbieznosci" << endl;
-	plik_bez_eksp << "Fibonacci;" << to_csv_str(m2d(opt_fib_no_exp.x)) << ";" 
+	plik_bez_eksp << "Metoda;x*;y*;Liczba wywolan;Minimum lokalne/globalne;Flaga zbieznosci" << endl;
+	plik_bez_eksp << "Fibonacci;" 
+	              << to_csv_str(m2d(opt_fib_no_exp.x)) << ";" 
 	              << to_csv_str(m2d(opt_fib_no_exp.y)) << ";" 
 	              << calls_fib_no_exp << ";" 
+	              << fib_typ << ";" 
 	              << opt_fib_no_exp.flag << endl;
-	plik_bez_eksp << "Lagrange;" << to_csv_str(m2d(opt_lag_no_exp.x)) << ";" 
-	              << to_csv_str(m2d(opt_lag_no_exp.y)) << ";" 
+	plik_bez_eksp << "Lagrange;" 
+	              << lag_x_str << ";" 
+	              << lag_y_str << ";" 
 	              << calls_lag_no_exp << ";" 
+	              << lag_typ << ";" 
 	              << opt_lag_no_exp.flag << endl;
 	plik_bez_eksp.close();
 
