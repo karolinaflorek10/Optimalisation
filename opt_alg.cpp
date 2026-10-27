@@ -152,6 +152,8 @@ solution fib(matrix(*ff)(matrix, matrix, matrix), double a, double b, double eps
 		Xc.x = c; Xc.fit_fun(ff, ud1, ud2);
 		Xd.x = d; Xd.fit_fun(ff, ud1, ud2);
 		
+		Xopt.ud = b_i - a_i; // Zapis poczatkowej dlugosci przedzialu
+
 		for (int i = 0; i < n - 3; ++i)
 		{
 			if (m2d(Xc.y) < m2d(Xd.y))
@@ -170,10 +172,13 @@ solution fib(matrix(*ff)(matrix, matrix, matrix), double a, double b, double eps
 				d = a_i + b_i - c;
 				Xd.x = d; Xd.fit_fun(ff, ud1, ud2);
 			}
+			Xopt.ud.add_row(b_i - a_i); // Historia zwezania
 		}
 		delete[] F;
 		
-		Xopt = Xc;
+		Xopt.x = Xc.x;
+		Xopt.y = Xc.y;
+		Xopt.flag = 1; // Flaga sukcesu
 		return Xopt;
 	}
 	catch (string ex_info)
@@ -205,20 +210,27 @@ solution lag(matrix(*ff)(matrix, matrix, matrix), double a, double b, double eps
 		int i = 0;
 		
 		Xopt.ud = b - a;
+		Xopt.flag = 0;
 		
 		while (true) 
 		{
 			double l = fa * (b * b - c * c) + fb * (c * c - a * a) + fc * (a * a - b * b);
 			double m = fa * (b - c) + fb * (c - a) + fc * (a - b);
 			
-			if (m <= 0.0) 
-				throw string("m <= 0");
+			if (m <= 0.0 || !isfinite(m)) 
+			{
+				Xopt.flag = 0;
+				break;
+			}
 				
 			d_prev = d;
 			d = 0.5 * l / m;
 			
-			if (d <= a || d >= b || d == c) 
-				throw string("d poza przedzialem");
+			if (d <= a || d >= b || d == c || !isfinite(d)) 
+			{
+				Xopt.flag = 0;
+				break;
+			}
 				
 			Xopt.x = d;
 			Xopt.fit_fun(ff, ud1, ud2);
@@ -259,14 +271,20 @@ solution lag(matrix(*ff)(matrix, matrix, matrix), double a, double b, double eps
 			Xopt.ud.add_row(b - a);
 			
 			if (solution::f_calls > Nmax) 
-				throw string("Przekroczono Nmax");
+			{
+				Xopt.flag = 0;
+				break;
+			}
 				
 			if ((b - a) < epsilon || (i > 1 && fabs(d - d_prev) < gamma)) 
+			{
+				Xopt.flag = 1;
 				break;
+			}
 		}
 		
-		Xopt.x = d;
-		Xopt.y = fd;
+		Xopt.x = (Xopt.flag == 1) ? d : c;
+		Xopt.fit_fun(ff, ud1, ud2);
 
 		return Xopt;
 	}

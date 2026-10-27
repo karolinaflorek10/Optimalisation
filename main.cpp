@@ -9,6 +9,8 @@ Data ostatniej modyfikacji: 15.09.2026
 *********************************************/
 
 #include"opt_alg.h"
+#include <algorithm>
+#include <iomanip>
 
 void lab0();
 void lab1();
@@ -228,43 +230,45 @@ void lab1()
 	plik_tabela1.close();
 	plik_tabela2.close();
 
-	double real_x0 = 0.005;
-	double* real_przedzial = expansion(ff1R, real_x0, 0.001, 2.0, limit_nmax);
+	double real_x0 = 50.0; // punkt startowy bezposrednio w cm2
+	double* real_przedzial = expansion(ff1R, real_x0, 1.0, 2.0, limit_nmax);
 	double real_ce = solution::f_calls;
 	solution::clear_calls();
 
-	optymalne = fib(ff1R, real_przedzial[0], real_przedzial[1], 1e-5);
-	matrix DA_fib_mat = optymalne.x;
-	double real_fy = m2d(optymalne.y);
+	// Optymalizacja w dopuszczalnym zakresie
+	solution opt_fib_real = fib(ff1R, real_przedzial[0], real_przedzial[1], 1e-4);
+	double real_fy = m2d(opt_fib_real.y);
 	double real_cf = solution::f_calls;
 	solution::clear_calls();
 
-	matrix DA_lag_mat = DA_fib_mat;
-	double real_ly = real_fy;
-	double real_cl = 0;
-	try
-	{
-		optymalne = lag(ff1R, real_przedzial[0], real_przedzial[1], 1e-5, 1e-6, limit_nmax);
-		DA_lag_mat = optymalne.x;
-		real_ly = m2d(optymalne.y);
-		real_cl = solution::f_calls;
-	}
-	catch (...)
-	{
-		real_cl = solution::f_calls;
-	}
+	solution opt_lag_real = lag(ff1R, real_przedzial[0], real_przedzial[1], 1e-4, 1e-6, limit_nmax);
+	double real_ly = m2d(opt_lag_real.y);
+	double real_cl = solution::f_calls;
 	solution::clear_calls();
 
 	ofstream plik_tabela3("tabela3.csv");
 	plik_tabela3 << "metoda (1 = Fibonacci, 2 = Lagrange);x0 [cm2];a [cm2];b [cm2];f_calls eksp.;D_A [cm2];y;f_calls" << endl;
-	plik_tabela3 << "1;" << to_csv_str(real_x0 * 1e4) << ";" << to_csv_str(real_przedzial[0] * 1e4) << ";" << to_csv_str(real_przedzial[1] * 1e4) << ";" << real_ce << ";" << to_csv_str(m2d(DA_fib_mat) * 1e4) << ";" << to_csv_str(real_fy) << ";" << real_cf << endl;
-	plik_tabela3 << "2;" << to_csv_str(real_x0 * 1e4) << ";" << to_csv_str(real_przedzial[0] * 1e4) << ";" << to_csv_str(real_przedzial[1] * 1e4) << ";" << real_ce << ";" << to_csv_str(m2d(DA_lag_mat) * 1e4) << ";" << to_csv_str(real_ly) << ";" << real_cl << endl;
+	plik_tabela3 << "1;" << to_csv_str(real_x0) << ";" 
+	             << to_csv_str(real_przedzial[0]) << ";" 
+	             << to_csv_str(real_przedzial[1]) << ";" 
+	             << real_ce << ";" 
+	             << to_csv_str(m2d(opt_fib_real.x)) << ";" 
+	             << to_csv_str(real_fy) << ";" 
+	             << real_cf << endl;
+	plik_tabela3 << "2;" << to_csv_str(real_x0) << ";" 
+	             << to_csv_str(real_przedzial[0]) << ";" 
+	             << to_csv_str(real_przedzial[1]) << ";" 
+	             << real_ce << ";" 
+	             << to_csv_str(m2d(opt_lag_real.x)) << ";" 
+	             << to_csv_str(real_ly) << ";" 
+	             << real_cl << endl;
 	plik_tabela3.close();
 	delete[] real_przedzial;
 
+	// Symulacja zoptymalizowanego ukladu
 	matrix stan_poczatkowy(3, new double[3] { 5.0, 1.0, 20.0 });
-	matrix* wynik_ode_fib = solve_ode(df1, 0.0, 1.0, 2000, stan_poczatkowy, NAN, matrix(m2d(DA_fib_mat)));
-	matrix* wynik_ode_lag = solve_ode(df1, 0.0, 1.0, 2000, stan_poczatkowy, NAN, matrix(m2d(DA_lag_mat)));
+	matrix* wynik_ode_fib = solve_ode(df1, 0.0, 1.0, 2000, stan_poczatkowy, NAN, opt_fib_real.x);
+	matrix* wynik_ode_lag = solve_ode(df1, 0.0, 1.0, 2000, stan_poczatkowy, NAN, opt_lag_real.x);
 	
 	ofstream plik_symulacja("symulacja.csv");
 	plik_symulacja << "t;V_A fib;V_A lag;V_B fib;V_B lag;T_B fib;T_B lag" << endl;
@@ -285,14 +289,43 @@ void lab1()
 	delete[] wynik_ode_fib;
 	delete[] wynik_ode_lag;
 
+	
+	solution::clear_calls();
+	solution opt_fib_no_exp = fib(ff1T, -100.0, 100.0, eps_fib);
+	int calls_fib_no_exp = solution::f_calls;
+	solution::clear_calls();
+
+	solution opt_lag_no_exp = lag(ff1T, -100.0, 100.0, eps_lag, gamma_lag, limit_nmax);
+	int calls_lag_no_exp = solution::f_calls;
+	solution::clear_calls();
+
+	ofstream plik_bez_eksp("bez_ekspansji.csv");
+	plik_bez_eksp << "Metoda;x*;y*;Liczba wywolan;Flaga zbieznosci" << endl;
+	plik_bez_eksp << "Fibonacci;" << to_csv_str(m2d(opt_fib_no_exp.x)) << ";" 
+	              << to_csv_str(m2d(opt_fib_no_exp.y)) << ";" 
+	              << calls_fib_no_exp << ";" 
+	              << opt_fib_no_exp.flag << endl;
+	plik_bez_eksp << "Lagrange;" << to_csv_str(m2d(opt_lag_no_exp.x)) << ";" 
+	              << to_csv_str(m2d(opt_lag_no_exp.y)) << ";" 
+	              << calls_lag_no_exp << ";" 
+	              << opt_lag_no_exp.flag << endl;
+	plik_bez_eksp.close();
+
+	int len_fib = get_len(opt_fib_no_exp.ud);
+	int len_lag = get_len(opt_lag_no_exp.ud);
+	int max_iter = max(len_fib, len_lag);
+
 	ofstream plik_wykres("wykres.csv");
-	plik_wykres << "x;y" << endl;
-	for (double x_val = -100.0; x_val <= 100.0; x_val += 0.5)
+	plik_wykres << "Nr iteracji;Metoda Fibonacciego;Metoda oparta na inperpolacji Lagrange'a" << endl;
+	for (int i = 0; i < max_iter; ++i)
 	{
-		solution punkt;
-		punkt.x = x_val;
-		punkt.fit_fun(ff1T);
-		plik_wykres << to_csv_str(x_val) << ";" << to_csv_str(m2d(punkt.y)) << endl;
+		plik_wykres << (i + 1) << ";";
+		if (i < len_fib)
+			plik_wykres << to_csv_str(opt_fib_no_exp.ud(i));
+		plik_wykres << ";";
+		if (i < len_lag)
+			plik_wykres << to_csv_str(opt_lag_no_exp.ud(i));
+		plik_wykres << endl;
 	}
 	plik_wykres.close();
 }

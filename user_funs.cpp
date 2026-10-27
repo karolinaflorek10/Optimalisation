@@ -92,4 +92,4 @@ matrix ff2T(matrix x, matrix ud1, matrix ud2)
 	// M_PI - stała oznaczająca liczbę pi.
 	//
 	// Funkcja ma wiele minimów lokalnych.
-
+}
