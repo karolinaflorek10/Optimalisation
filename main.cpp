@@ -388,6 +388,12 @@ void lab2()
 		opt.x = matrix(2, 1, 5);
 		cout << endl << endl;
 		// Obliczenie i wyświetlenie wartości funkcji celu Q(5, 5)
+		//fit_fun(ff2R) wywoluje funkcje celu dla punktu opt.x
+        //ff2R przeprowadza symulacje ruchu ramienia robota
+        //i oblicza funkcje jakosci sterowania
+        //oczekiwany wynik wedlug konspektu okolo 775.229
+        cout << opt.fit_fun(ff2R) << endl << endl;
+        solution::clear_calls();
 	}
 }
 void lab3()
