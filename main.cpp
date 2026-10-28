@@ -330,8 +330,65 @@ void lab2()
 		// s0 = [0.5; 0.5]
 		
 		//Losowanie punktu początkowego x0 = [x1; x2]
-		//
-}
+		// rand_mat(2, 1) generuje dwie liczby z przedziału [0, 1]
+		// Po pomnożeniu przez 2 i odjęciu 1 otrzymujemy x1, x2 z [-1, 1]
+		x0 = 2 * rand_mat(2, 1) - 1;
+		cout << x0 << endl << endl;
+
+		// Metoda Hooke'a-Jeevesa:
+		// ff2T - testowa funkcja celu dwóch zmiennych
+		// x0 - punkt startowy, s - krok początkowy
+		// alphaHJ - współczynnik redukcji kroku
+		// epsilon - dokładność, Nmax - limit wywołań
+		// Wynik zostaje zapisany w obiekcie opt
+		opt = HJ(ff2T, x0, s, alphaHJ, epsilon, Nmax);
+		cout << opt << endl << endl;
+		// Wyzerowanie liczników wywołań funkcji celu
+		// przed rozpoczęciem metody Rosenbrocka
+		solution::clear_calls();
+	}
+	if (0) // Ramie robota
+	{
+		// Początkowa długość kroku dla optymalizacji regulatora
+		s = 2;
+		alphaHJ = 0.5; // Hooke-Jeeves: zmniejszanie kroku o połowę
+		alphaR = 2; // Rosenbrock: podwajanie kroku po udanym ruchu
+		beta = 0.5; // Rosenbrock: zmniejszanie i odwracanie kroku po nieudanym ruchu
+		epsilon = 1e-3; // Dokładność optymalizacji
+		Nmax = 1000; // Limit wywołań funkcji celu
+		x0 = 20 * rand_mat(2, 1); // Losowanie początkowych współczynników regulatora:
+		// x0(0) = k1, x0(1) = k2
+		// Oba współczynniki początkowe należą do przedziału [0, 20]
+		cout << x0 << endl << endl;
+
+		// Optymalizacja regulatora metodą Hooke'a-Jeevesa
+		// ff2R - funkcja celu dla modelu ramienia robota
+		// Szukamy współczynników k1 i k2 minimalizujących
+		// funkcję jakości sterowania Q(k1, k2)
+		opt = HJ(ff2R, x0, s, alphaHJ, epsilon, Nmax);
+		cout << opt << endl << endl;
+		solution::clear_calls();
+
+		// Utworzenie wektora początkowych kroków dla Rosenbrocka:
+		// s0 = [2; 2]
+		s0 = matrix(2, 1, s);
+		// Optymalizacja tego samego regulatora metodą Rosenbrocka
+		// Obie metody rozpoczynają obliczenia od tego samego punktu x0
+		// Rosenbrock może niezależnie zmieniać kroki w obu kierunkach
+		opt = Rosen(ff2R, x0, s0, alphaR, beta, epsilon, Nmax);
+		cout << opt << endl << endl;
+		solution::clear_calls();
+		}
+	if (1) // Test modelu i funkcji celu
+	{
+		// Ustawienie współczynników regulatora:
+		// k1 = 5, k2 = 5
+		// matrix(2, 1, 5) tworzy wektor [5; 5]
+		// Nie wykonujemy tutaj optymalizacji, tylko test funkcji celu
+		opt.x = matrix(2, 1, 5);
+		cout << endl << endl;
+		// Obliczenie i wyświetlenie wartości funkcji celu Q(5, 5)
+	}
 }
 void lab3()
 {
