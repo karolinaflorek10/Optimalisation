@@ -79,7 +79,7 @@ matrix y; //zmienna przechowujaca wartosc funkcji celu
 //x2 = 0
 //f(0,0)=0
 y = pow(x(0), 2)+ pow(x(1), 2) - cos(2.5 * M_PI * x(0)) - cos(2.5 *M_PI *x (1)) + 2;
-
+return y;
 }
 
 
@@ -203,8 +203,8 @@ moment sterujacy:  M(t) = k1*(alpha_ref - alpha) + k2*(omega_ref - omega)
 
 cale wyrazeniei oblicza przyspieszenie katowe:
 */
-
-dY(1) = (ud2(0) * (ud1(0) - Y(0)) + ud2(1) * (ud1(1) - Y(1)) - b * Y(1));
+dY(0) = Y(1);
+dY(1) = (ud2(0) * (ud1(0) - Y(0)) + ud2(1) * (ud1(1) - Y(1)) - b * Y(1))/I;
 //zwracamy wrektor pochodnych ktory zostanie wykorzystany przez solve_ode() do numeryxznego rozwiazania rownan ruchu 
 
 return dY;

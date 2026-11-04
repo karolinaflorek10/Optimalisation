@@ -1,0 +1,4 @@
+*.o
+Opt
+*.csv
+.DS_Store
