@@ -298,104 +298,340 @@ void lab1()
 	plik_wykres.close();
 }
 
-
 void lab2()
 {
-// Deklaracja parametrów optymalizacji:
-    // s       - początkowa długość kroku
-    // alphaHJ - współczynnik zmniejszania kroku w metodzie Hooke'a-Jeevesa
-    // alphaR  - współczynnik zwiększania kroku w metodzie Rosenbrocka
-    // beta    - współczynnik zmniejszania i odwracania kroku w metodzie Rosenbrocka
-    // epsilon - dokładność zakończenia optymalizacji
-    double s, alphaHJ, alphaR, beta, epsilon;
-    int Nmax; // Maksymalna liczba wywołań funkcji celu
+    const double eps = 1e-3;
+    const int Nmax = 1000;
+    const double alphaHJ = 0.5;
+    const double alphaR = 2.0;
+    const double beta = 0.5;
 
-    // Obiekt przechowujący wynik optymalizacji:
-    // opt.x - znaleziony punkt, opt.y - wartość funkcji celu
-    solution opt;
-    // x0 - wektor punktu początkowego
-    // s0 - wektor początkowych kroków dla metody Rosenbrocka
-    matrix x0, s0;
+    // =========================================================
+    // 5.a Testowa funkcja celu
+    // =========================================================
+    double steps[3] = { 0.05, 0.1, 0.2 };
 
-    if (0) // Funkcja testowa
+    // Tabela 1: nagłówki 1:1 z szablonu Excela
+    ofstream plik_tab1("tabela1.csv");
+    plik_tab1 << "Długość kroku;Lp.;x1(0);x2(0);"
+              << "x1*;x2*;y*;Liczba wywołań funkcji celu;Minimum globalne [TAK/NIE];"
+              << "x1*;x2*;y*;Liczba wywołań funkcji celu;Minimum globalne [TAK/NIE]\n";
+
+    // Tabela 2: wartości średnie dla minimów globalnych
+    ofstream plik_tab2("tabela2.csv");
+    plik_tab2 << "Długość kroku;"
+              << "x1*;x2*;y*;Liczba wywołań funkcji celu;Liczba minimów globalnych;"
+              << "x1*;x2*;y*;Liczba wywołań funkcji celu;Liczba minimów globalnych\n";
+
+    for (int is = 0; is < 3; ++is)
     {
-        s = 0.5; // Początkowa długość kroku
-        alphaHJ = 0.5; // Hooke-Jeeves: po nieudanym poszukiwaniu krok zmniejsza się o połowę
-        alphaR = 2; // Rosenbrock: po udanym ruchu krok zwiększa się dwukrotnie
-        beta = 0.5; // Rosenbrock: po nieudanym ruchu krok zmniejsza się o połowę
-                    // i zmienia znak, czyli kierunek
-        epsilon = 1e-3; // Dokładność optymalizacji: 0.001
-        Nmax = 1000; // Limit wywołań funkcji celu
-		s0 = matrix(2, 1, s); //Utworzenie wektora 2x1 zawierajacego poczatkowe kroki:
-		// s0 = [0.5; 0.5]
-		
-		//Losowanie punktu początkowego x0 = [x1; x2]
-		// rand_mat(2, 1) generuje dwie liczby z przedziału [0, 1]
-		// Po pomnożeniu przez 2 i odjęciu 1 otrzymujemy x1, x2 z [-1, 1]
-		x0 = 2 * rand_mat(2, 1) - 1;
-		cout << x0 << endl << endl;
+        double s = steps[is];
+        double s_tab[2] = { s, s };
+        matrix s0(2, s_tab);
 
-		// Metoda Hooke'a-Jeevesa:
-		// ff2T - testowa funkcja celu dwóch zmiennych
-		// x0 - punkt startowy, s - krok początkowy
-		// alphaHJ - współczynnik redukcji kroku
-		// epsilon - dokładność, Nmax - limit wywołań
-		// Wynik zostaje zapisany w obiekcie opt
-		opt = HJ(ff2T, x0, s, alphaHJ, epsilon, Nmax);
-		cout << opt << endl << endl;
-		// Wyzerowanie liczników wywołań funkcji celu
-		// przed rozpoczęciem metody Rosenbrocka
-		solution::clear_calls();
-	}
-	if (0) // Ramie robota
-	{
-		// Początkowa długość kroku dla optymalizacji regulatora
-		s = 2;
-		alphaHJ = 0.5; // Hooke-Jeeves: zmniejszanie kroku o połowę
-		alphaR = 2; // Rosenbrock: podwajanie kroku po udanym ruchu
-		beta = 0.5; // Rosenbrock: zmniejszanie i odwracanie kroku po nieudanym ruchu
-		epsilon = 1e-3; // Dokładność optymalizacji
-		Nmax = 1000; // Limit wywołań funkcji celu
-		x0 = 20 * rand_mat(2, 1); // Losowanie początkowych współczynników regulatora:
-		// x0(0) = k1, x0(1) = k2
-		// Oba współczynniki początkowe należą do przedziału [0, 20]
-		cout << x0 << endl << endl;
+        // Sumy do wyliczenia średnich z prób zakończonych minimum globalnym
+        double sum_x1_hj = 0, sum_x2_hj = 0, sum_y_hj = 0, sum_calls_hj = 0;
+        int glob_hj = 0;
 
-		// Optymalizacja regulatora metodą Hooke'a-Jeevesa
-		// ff2R - funkcja celu dla modelu ramienia robota
-		// Szukamy współczynników k1 i k2 minimalizujących
-		// funkcję jakości sterowania Q(k1, k2)
-		opt = HJ(ff2R, x0, s, alphaHJ, epsilon, Nmax);
-		cout << opt << endl << endl;
-		solution::clear_calls();
+        double sum_x1_r = 0, sum_x2_r = 0, sum_y_r = 0, sum_calls_r = 0;
+        int glob_r = 0;
 
-		// Utworzenie wektora początkowych kroków dla Rosenbrocka:
-		// s0 = [2; 2]
-		s0 = matrix(2, 1, s);
-		// Optymalizacja tego samego regulatora metodą Rosenbrocka
-		// Obie metody rozpoczynają obliczenia od tego samego punktu x0
-		// Rosenbrock może niezależnie zmieniać kroki w obu kierunkach
-		opt = Rosen(ff2R, x0, s0, alphaR, beta, epsilon, Nmax);
-		cout << opt << endl << endl;
-		solution::clear_calls();
-		}
-	if (1) // Test modelu i funkcji celu
-	{
-		// Ustawienie współczynników regulatora:
-		// k1 = 5, k2 = 5
-		// matrix(2, 1, 5) tworzy wektor [5; 5]
-		// Nie wykonujemy tutaj optymalizacji, tylko test funkcji celu
-		opt.x = matrix(2, 1, 5);
-		cout << endl << endl;
-		// Obliczenie i wyświetlenie wartości funkcji celu Q(5, 5)
-		//fit_fun(ff2R) wywoluje funkcje celu dla punktu opt.x
-        //ff2R przeprowadza symulacje ruchu ramienia robota
-        //i oblicza funkcje jakosci sterowania
-        //oczekiwany wynik wedlug konspektu okolo 775.229
-        cout << opt.fit_fun(ff2R) << endl << endl;
+        for (int i = 0; i < 100; ++i)
+        {
+            matrix r = rand_mat(2, 1);
+            double x0_arr[2] = { 2.0 * r(0, 0) - 1.0, 2.0 * r(1, 0) - 1.0 };
+            matrix x0(2, x0_arr);
+
+            // Hooke-Jeeves
+            solution::clear_calls();
+            solution opt_hj = HJ(ff2T, x0, s, alphaHJ, eps, Nmax);
+            double calls_hj = solution::f_calls;
+            double y_hj = m2d(opt_hj.y);
+            bool is_glob_hj = (y_hj < 0.05);
+
+            if (is_glob_hj)
+            {
+                glob_hj++;
+                sum_x1_hj += opt_hj.x(0, 0);
+                sum_x2_hj += opt_hj.x(1, 0);
+                sum_y_hj += y_hj;
+                sum_calls_hj += calls_hj;
+            }
+
+            // Rosenbrock
+            solution::clear_calls();
+            solution opt_r = Rosen(ff2T, x0, s0, alphaR, beta, eps, Nmax);
+            double calls_r = solution::f_calls;
+            double y_r = m2d(opt_r.y);
+            bool is_glob_r = (y_r < 0.05);
+
+            if (is_glob_r)
+            {
+                glob_r++;
+                sum_x1_r += opt_r.x(0, 0);
+                sum_x2_r += opt_r.x(1, 0);
+                sum_y_r += y_r;
+                sum_calls_r += calls_r;
+            }
+            solution::clear_calls();
+
+            plik_tab1 << to_csv_str(s) << ";"
+                      << (i + 1) << ";"
+                      << to_csv_str(x0(0, 0)) << ";"
+                      << to_csv_str(x0(1, 0)) << ";"
+                      << to_csv_str(opt_hj.x(0, 0)) << ";"
+                      << to_csv_str(opt_hj.x(1, 0)) << ";"
+                      << to_csv_str(y_hj) << ";"
+                      << calls_hj << ";"
+                      << (is_glob_hj ? "TAK" : "NIE") << ";"
+                      << to_csv_str(opt_r.x(0, 0)) << ";"
+                      << to_csv_str(opt_r.x(1, 0)) << ";"
+                      << to_csv_str(y_r) << ";"
+                      << calls_r << ";"
+                      << (is_glob_r ? "TAK" : "NIE") << "\n";
+        }
+
+        // Zapis wiersza podsumowania do Tabeli 2
+        plik_tab2 << to_csv_str(s) << ";"
+                  << (glob_hj > 0 ? to_csv_str(sum_x1_hj / glob_hj) : "-") << ";"
+                  << (glob_hj > 0 ? to_csv_str(sum_x2_hj / glob_hj) : "-") << ";"
+                  << (glob_hj > 0 ? to_csv_str(sum_y_hj / glob_hj) : "-") << ";"
+                  << (glob_hj > 0 ? to_csv_str(sum_calls_hj / glob_hj) : "-") << ";"
+                  << glob_hj << ";"
+                  << (glob_r > 0 ? to_csv_str(sum_x1_r / glob_r) : "-") << ";"
+                  << (glob_r > 0 ? to_csv_str(sum_x2_r / glob_r) : "-") << ";"
+                  << (glob_r > 0 ? to_csv_str(sum_y_r / glob_r) : "-") << ";"
+                  << (glob_r > 0 ? to_csv_str(sum_calls_r / glob_r) : "-") << ";"
+                  << glob_r << "\n";
+    }
+
+    plik_tab1.close();
+    plik_tab2.close();
+
+    // =========================================================
+    // Arkusz: Wykres 
+    // =========================================================
+    {
+        // Losujemy punkt startowy w przedziale [-1, 1] z pełną precyzją
+        matrix r_plot = rand_mat(2, 1);
+        double x0_plot[2] = { 2.0 * r_plot(0, 0) - 1.0, 2.0 * r_plot(1, 0) - 1.0 };
+        matrix x0_p(2, x0_plot);
+
+        double s_plot = 0.5; // Krok 0.5 jak w konspekcie i na wzorcu
+        double s0_p_arr[2] = { s_plot, s_plot };
+        matrix s0_p(2, s0_p_arr);
+
+        // 1. Hooke-Jeeves: rejestracja punktu bazowego XB w KAŻDEJ iteracji
+        vector<pair<double, double>> path_hj;
+        solution XB(x0_p), XB_old, X;
+        XB.fit_fun(ff2T);
+        path_hj.push_back({ XB.x(0, 0), XB.x(1, 0) }); // iteracja 0
+
+        double s_curr = s_plot;
         solution::clear_calls();
-	}
+
+        while (true)
+        {
+            X = HJ_trial(ff2T, XB, s_curr);
+            if (X.y < XB.y)
+            {
+                while (true)
+                {
+                    XB_old = XB;
+                    XB = X;
+                    path_hj.push_back({ XB.x(0, 0), XB.x(1, 0) });
+
+                    double next_x[2] = { 2.0 * XB.x(0, 0) - XB_old.x(0, 0),
+                                         2.0 * XB.x(1, 0) - XB_old.x(1, 0) };
+                    X.x = matrix(2, next_x);
+                    X.fit_fun(ff2T);
+                    X = HJ_trial(ff2T, X, s_curr);
+
+                    if (X.y >= XB.y || solution::f_calls > Nmax)
+                        break;
+                }
+            }
+            else
+            {
+                s_curr *= alphaHJ;
+                // Zapisujemy punkt bazowy również przy zmniejszaniu kroku (jak na wzorcu)
+                path_hj.push_back({ XB.x(0, 0), XB.x(1, 0) });
+            }
+
+            if (s_curr < eps || solution::f_calls > Nmax)
+                break;
+        }
+
+        // 2. Rosenbrock: rejestracja punktu bazowego XB po każdym obiegu kierunków
+        vector<pair<double, double>> path_r;
+        XB = solution(x0_p);
+        XB.fit_fun(ff2T);
+        path_r.push_back({ XB.x(0, 0), XB.x(1, 0) }); // iteracja 0
+
+        int n_dim = 2;
+        matrix l(n_dim, 1), p(n_dim, 1), s_vec(s0_p), D = ident_mat(n_dim);
+        solution::clear_calls();
+
+        while (true)
+        {
+            for (int j = 0; j < n_dim; ++j)
+            {
+                X.x = XB.x + s_vec(j, 0) * D[j];
+                X.fit_fun(ff2T);
+                if (X.y < XB.y)
+                {
+                    XB = X;
+                    l(j, 0) += s_vec(j, 0);
+                    s_vec(j, 0) *= alphaR;
+                }
+                else
+                {
+                    p(j, 0) += 1.0;
+                    s_vec(j, 0) *= -beta;
+                }
+            }
+            path_r.push_back({ XB.x(0, 0), XB.x(1, 0) });
+
+            bool change = true;
+            for (int j = 0; j < n_dim; ++j)
+                if (l(j, 0) == 0.0 || p(j, 0) == 0.0)
+                {
+                    change = false;
+                    break;
+                }
+
+            if (change)
+            {
+                matrix Q(n_dim, n_dim), v(n_dim, 1);
+                for (int i = 0; i < n_dim; ++i)
+                    for (int j = 0; j <= i; ++j)
+                        Q(i, j) = l(i, 0);
+                Q = D * Q;
+                v = Q[0] / norm(Q[0]);
+                D.set_col(v, 0);
+
+                for (int i = 1; i < n_dim; ++i)
+                {
+                    matrix temp(n_dim, 1);
+                    for (int j = 0; j < i; ++j)
+                        temp = temp + trans(Q[i]) * D[j] * D[j];
+                    v = (Q[i] - temp) / norm(Q[i] - temp);
+                    D.set_col(v, i);
+                }
+                s_vec = s0_p;
+                l = matrix(n_dim, 1);
+                p = matrix(n_dim, 1);
+            }
+
+            double max_s = abs(s_vec(0, 0));
+            if (max_s < abs(s_vec(1, 0)))
+                max_s = abs(s_vec(1, 0));
+
+            if (max_s < eps || solution::f_calls > Nmax)
+                break;
+        }
+
+        // Zapis do pliku arkusz_wykres.csv z 6 miejscami po przecinku
+        ofstream plik_w("arkusz_wykres.csv");
+        plik_w << fixed << setprecision(6);
+        plik_w << "Nr iteracji;x1*(HJ);x2*(HJ);x1*(Rosen);x2*(Rosen)\n";
+        size_t max_iter = max(path_hj.size(), path_r.size());
+        for (size_t it = 0; it < max_iter; ++it)
+        {
+            plik_w << it << ";";
+            if (it < path_hj.size())
+            {
+                string s1 = to_string(path_hj[it].first);
+                string s2 = to_string(path_hj[it].second);
+                // wymuszenie polskiego przecinka
+                replace(s1.begin(), s1.end(), '.', ',');
+                replace(s2.begin(), s2.end(), '.', ',');
+                // format do 6 cyfr po przecinku
+                plik_w << s1.substr(0, s1.find(',') + 7) << ";" << s2.substr(0, s2.find(',') + 7) << ";";
+            }
+            else
+                plik_w << ";;";
+
+            if (it < path_r.size())
+            {
+                string s1 = to_string(path_r[it].first);
+                string s2 = to_string(path_r[it].second);
+                replace(s1.begin(), s1.end(), '.', ',');
+                replace(s2.begin(), s2.end(), '.', ',');
+                plik_w << s1.substr(0, s1.find(',') + 7) << ";" << s2.substr(0, s2.find(',') + 7) << "\n";
+            }
+            else
+                plik_w << ";\n";
+        }
+        plik_w.close();
+        solution::clear_calls();
+    }
+
+    // =========================================================
+    // 5.b Problem rzeczywisty (Tabela 3 i Symulacja)
+    // =========================================================
+    double s_real = 2.0;
+    double s0_real_arr[2] = { s_real, s_real };
+    matrix s0_real(2, s0_real_arr);
+
+    matrix r_real = rand_mat(2, 1);
+    double x0_real_arr[2] = { 20.0 * r_real(0, 0), 20.0 * r_real(1, 0) };
+    matrix x0_real(2, x0_real_arr);
+
+    // HJ
+    solution::clear_calls();
+    solution real_hj = HJ(ff2R, x0_real, s_real, alphaHJ, eps, Nmax);
+    double calls_real_hj = solution::f_calls;
+    solution::clear_calls();
+
+    // Rosenbrock
+    solution real_r = Rosen(ff2R, x0_real, s0_real, alphaR, beta, eps, Nmax);
+    double calls_real_r = solution::f_calls;
+    solution::clear_calls();
+
+    // Tabela 3
+    ofstream plik_tab3("tabela3.csv");
+    plik_tab3 << "Długość kroku;k1*;k2*;Q*;Liczba wywołań funkcji celu;k1*;k2*;Q*;Liczba wywołań funkcji celu\n";
+    plik_tab3 << to_csv_str(s_real) << ";"
+              << to_csv_str(real_hj.x(0, 0)) << ";"
+              << to_csv_str(real_hj.x(1, 0)) << ";"
+              << to_csv_str(m2d(real_hj.y)) << ";"
+              << calls_real_hj << ";"
+              << to_csv_str(real_r.x(0, 0)) << ";"
+              << to_csv_str(real_r.x(1, 0)) << ";"
+              << to_csv_str(m2d(real_r.y)) << ";"
+              << calls_real_r << "\n";
+    plik_tab3.close();
+
+    // Arkusz Symulacja: symulacja dla obu metod
+    double y0_tab[2] = { 0.0, 0.0 };
+    matrix Y0(2, y0_tab);
+    double yref_tab[2] = { 3.14, 0.0 };
+    matrix Y_ref(2, yref_tab);
+
+    matrix* Y_sim_hj = solve_ode(df2, 0.0, 0.1, 100.0, Y0, Y_ref, real_hj.x);
+    matrix* Y_sim_r  = solve_ode(df2, 0.0, 0.1, 100.0, Y0, Y_ref, real_r.x);
+
+    ofstream plik_sym("symulacja.csv");
+    plik_sym << "t;alpha_HJ;omega_HJ;alpha_Rosen;omega_Rosen\n";
+    int* sim_sz = get_size(Y_sim_hj[0]);
+    int n_steps = sim_sz[0];
+    for (int t = 0; t < n_steps; ++t)
+    {
+        plik_sym << to_csv_str(Y_sim_hj[0](t, 0)) << ";"
+                 << to_csv_str(Y_sim_hj[1](t, 0)) << ";"
+                 << to_csv_str(Y_sim_hj[1](t, 1)) << ";"
+                 << to_csv_str(Y_sim_r[1](t, 0)) << ";"
+                 << to_csv_str(Y_sim_r[1](t, 1)) << "\n";
+    }
+    plik_sym.close();
+    delete[] sim_sz;
+    delete[] Y_sim_hj;
+    delete[] Y_sim_r;
+
+    cout << "Wygenerowano pliki\n";
 }
+
 void lab3()
 {
 
