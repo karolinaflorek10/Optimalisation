@@ -223,3 +223,295 @@ dY(1)= FAout + Fin -FBout;
 dY(2)= Fin/Y(1)*(Tin -Y(2))+FAout/Y(1)*(TA - Y(2));
 return dY;
 }
+
+matrix ff3Ta(matrix x, matrix ud1, matrix ud2)
+{
+    matrix y;
+
+    // Obliczamy argument funkcji testowej.
+    //
+    // arg = pi * sqrt((x1/pi)^2 + (x2/pi)^2)
+    //
+    // Matematycznie jest to po prostu:
+    //
+    // arg = sqrt(x1^2 + x2^2)
+    //
+    // czyli odległość punktu od początku układu.
+
+    double arg = M_PI * sqrt(pow(x(0) / M_PI, 2) + pow(x(1) / M_PI, 2));
+
+    // Oryginalna funkcja celu:
+    //
+    // f(x1,x2) = sin(arg) / arg
+
+    y = sin(arg) / arg;
+
+	// PIERWSZE OGRANICZENIE
+//
+// g1(x1) = -x1 + 1 <= 0
+//
+// Jest ono równoważne warunkowi x1 >= 1.
+//
+// Jeżeli x1 < 1, dodajemy karę.
+
+if (-x(0) + 1 > 0)
+    y = y + ud2 * pow(-x(0) + 1, 2);
+
+// DRUGIE OGRANICZENIE
+//
+// g2(x2) = -x2 + 1 <= 0
+//
+// Jest ono równoważne warunkowi x2 >= 1.
+
+if (-x(1) + 1 > 0)
+    y = y + ud2 * pow(-x(1) + 1, 2);
+
+// TRZECIE OGRANICZENIE
+//
+// g3(x1,x2) = sqrt(x1^2+x2^2) - a <= 0
+//
+// Oznacza to, że punkt musi znajdować się
+// wewnątrz koła o promieniu a.
+//
+// ud1 - wartość parametru a
+// ud2 - aktualny współczynnik kary c
+
+if (norm(x) - ud1 > 0)
+    y = y + ud2 * pow(norm(x) - ud1, 2);
+
+// Zwracamy funkcję celu powiększoną
+// o kary za naruszenie ograniczeń.
+
+return y;
+}
+
+matrix ff3Tb(matrix x, matrix ud1, matrix ud2)
+{
+    matrix y;
+
+    // Argument funkcji testowej.
+    //
+    // Uwaga:
+    // można 3.14 zamiast M_PI.
+
+    double arg = 3.14 * sqrt(pow(x(0) / M_PI, 2) + pow(x(1) / M_PI, 2));
+
+    // Oryginalna funkcja celu.
+
+    y = sin(arg) / arg;
+
+    // PIERWSZE OGRANICZENIE
+    //
+    // x1 >= 1
+    //
+    // Jeżeli punkt nie spełnia ograniczenia,
+	// przypisujemy bardzo dużą wartość funkcji celu.
+
+	if (-x(0) + 1 > 0)
+		y = 1e10;
+	else
+		// Wewnątrz obszaru dopuszczalnego
+		// dodajemy wartość funkcji bariery.
+		//
+		// Ponieważ g1(x) < 0:
+		// -ud2/g1(x) > 0
+
+		y = y - ud2 / (-x(0) + 1);
+
+
+	// DRUGIE OGRANICZENIE
+	//
+	// x2 >= 1
+
+	if (-x(1) + 1 > 0)
+		y = 1e10;
+	else
+		y = y - ud2 / (-x(1) + 1);
+
+	// TRZECIE OGRANICZENIE
+	//
+	// sqrt(x1^2+x2^2) <= a
+
+	if (norm(x) - ud1 > 0)
+		y = 1e10;
+	else
+		y = y - ud2 / (norm(x) - ud1);
+
+	return y;
+
+}
+
+matrix ff3R(matrix x, matrix ud1, matrix ud2)
+{
+    matrix y;
+
+    // x(0) - początkowa prędkość pozioma v0x
+    // x(1) - prędkość kątowa omega
+    //
+    // Warunki początkowe:
+    //
+    // x(0) = 0 m
+    // vx(0) = v0x
+    // y(0) = 100 m
+    // vy(0) = 0 m/s
+
+    matrix Y0(4, new double[4] { 0, x(0), 100, 0 });
+
+    // Rozwiązujemy równania ruchu piłki.
+    //
+    // Czas symulacji: 0-7 s
+    // Krok czasowy: 0.01 s
+    //
+	// Prędkość kątową przekazujemy przez x(1).
+
+	matrix* Y = solve_ode(df3, 0, 0.01, 7, Y0, ud1, x(1));
+
+	int n = get_len(Y[0]);
+
+	// i50 - indeks punktu, dla którego y jest najbliższe 50 m
+	// i0 - indeks punktu, dla którego y jest najbliższe 0 m
+
+	int i50 = 0, i0 = 0;
+
+	for (int i = 0; i < n; ++i)
+	{
+		// Szukamy położenia piłki na wysokości około 50 m.
+
+		if (abs(Y[1](i, 2) - 50) < abs(Y[1](i50, 2) - 50))
+			i50 = i;
+
+		// Szukamy punktu uderzenia w podłoże.
+
+		if (abs(Y[1](i, 2)) < abs(Y[1](i0, 2)))
+			i0 = i;
+	}
+
+	// Funkcja celu:
+	//
+	// Minimalizujemy ujemny zasięg.
+	// xend to położenie poziome przy y ≈ 0.
+
+	y = -Y[1](i0, 0);
+
+	// OGRANICZENIE 1
+	//
+	// v0x należy do przedziału [-10,10].
+	//
+	// Jeżeli wartość bezwzględna v0x przekroczy 10,
+	// dodajemy karę zewnętrzną.
+
+	if (abs(x(0)) - 10 > 0)
+		y = y + ud2 * pow(abs(x(0)) - 10, 2);
+
+	// OGRANICZENIE 2
+	//
+	// omega należy do przedziału [-10,10].
+
+	if (abs(x(1)) - 10 > 0)
+		y = y + ud2 * pow(abs(x(1)) - 10, 2);
+
+	// OGRANICZENIE 3
+	//
+	// Na wysokości y = 50 m piłka powinna znajdować się
+	// w odległości nie większej niż 2 m od punktu x = 5 m.
+	//
+	// Zatem:
+	//
+	// |x50 - 5| <= 2
+	//
+	// czyli:
+	//
+	// 3 <= x50 <= 7
+	//
+	// Jeżeli warunek jest niespełniony,
+	// dodajemy karę zewnętrzną.
+
+	if (abs(Y[1](i50, 0) - 5) - 2 > 0)
+		y = y + ud2 * pow(abs(Y[1](i50, 0) - 5) - 2, 2);
+
+	// Zwracamy ujemny zasięg powiększony o ewentualne kary.
+
+	return y;
+}
+matrix df3(double t, matrix Y, matrix ud1, matrix ud2)
+{
+    // Parametry fizyczne modelu.
+    //
+    // C - współczynnik oporu powietrza
+    // r - promień piłki [m]
+    // m - masa piłki [kg]
+    // ro - gęstość powietrza [kg/m^3]
+    // g - przyspieszenie ziemskie [m/s^2]
+
+    double C = 0.47, r = 0.12, m = 0.6, ro = 1.2, g = 9.81;
+
+    // Pole powierzchni przekroju piłki.
+    //
+    // S = pi * r^2
+
+    double S = M_PI * r * r,
+
+		// Siła oporu w kierunku poziomym.
+		//
+		// Dx = 0.5 * C * ro * S * vx * |vx|
+
+		Dx = 0.5 * C * ro * S * Y(1) * abs(Y(1)),
+
+		// Siła oporu w kierunku pionowym.
+		//
+		// Dy = 0.5 * C * ro * S * vy * |vy|
+
+		Dy = 0.5 * C * ro * S * Y(3) * abs(Y(3)),
+
+		// Siła Magnusa w kierunku poziomym.
+		//
+		// ud2 - prędkość kątowa omega
+		//
+		// FMx = pi * ro * vy * omega * r^3
+
+		FMx = M_PI * ro * Y(3) * m2d(ud2) * pow(r, 3),
+
+		// Siła Magnusa w kierunku pionowym.
+		//
+		// FMy = pi * ro * vx * omega * r^3
+
+		FMy = M_PI * ro * Y(1) * m2d(ud2) * pow(r, 3);
+
+    // Tworzymy wektor czterech pochodnych.
+
+    matrix dY(4, 1);
+
+    // POCHODNA POŁOŻENIA POZIOMEGO
+    //
+    // dx/dt = vx
+
+    dY(0) = Y(1);
+
+    // POCHODNA PRĘDKOŚCI POZIOMEJ
+    //
+    // m * dvx/dt = -Dx - FMx
+
+    dY(1) = (-Dx - FMx) / m;
+
+    // POCHODNA POŁOŻENIA PIONOWEGO
+    //
+    // dy/dt = vy
+
+    dY(2) = Y(3);
+
+    // POCHODNA PRĘDKOŚCI PIONOWEJ
+    //
+    // m * dvy/dt = -m*g - Dy - FMy
+
+    dY(3) = (-m * g - Dy - FMy) / m;
+
+    return dY;
+}
+
+
+
+
+
+
+
+
