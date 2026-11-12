@@ -635,6 +635,252 @@ void lab2()
 void lab3()
 {
 
+    matrix x0; // Punkt początkowy optymalizacji
+
+    // c_ex - początkowy współczynnik zewnętrznej funkcji kary
+    // c_in - początkowy współczynnik wewnętrznej funkcji kary
+    // dc_ex - współczynnik zwiększania kary zewnętrznej
+    // dc_in - współczynnik zmniejszania kary wewnętrznej
+    // epsilon - dokładność optymalizacji
+
+    double c_ex, c_in, dc_ex, dc_in, epsilon;
+
+    int Nmax;     // Maksymalna liczba wywołań funkcji celu
+    solution opt; // Obiekt przechowujący rozwiązanie
+
+    // ==========================================
+    // CZĘŚĆ 1 - FUNKCJA TESTOWA
+    // ==========================================
+
+    if (0) // Funkcja testowa
+    {
+        // Parametr ograniczenia:
+        //
+        // x1^2 + x2^2 <= a^2
+        //
+        // W konspekcie należy przyjąć kolejno:
+        // a = 4, a = 4.4934 oraz a = 5.
+        //
+        // Tutaj rozpatrujemy przypadek a = 4.
+
+        matrix a(4);
+
+        // Początkowa wartość współczynnika kary zewnętrznej.
+        c_ex = 1;
+
+        // Początkowa wartość współczynnika kary wewnętrznej.
+        c_in = 10;
+
+        // W metodzie zewnętrznej zwiększamy karę
+        // po każdej optymalizacji.
+        //
+        // Przykład: 1 -> 2 -> 4 -> 8 -> ...
+
+        dc_ex = 2;
+
+        // W metodzie wewnętrznej zmniejszamy
+        // współczynnik funkcji bariery.
+        //
+        // Przykład: 10 -> 5 -> 2.5 -> 1.25 -> ...
+
+        dc_in = 0.5;
+
+        epsilon = 1e-4;
+        Nmax = 10000;
+
+        // Losujemy punkt początkowy.
+        //
+        // rand_mat(2,1) zwraca dwie liczby losowe
+        // z przedziału [0,1].
+        //
+        // Po przekształceniu otrzymujemy współrzędne
+        // z przedziału [1,6].
+
+        do
+        {
+            x0 = 5 * rand_mat(2, 1) + 1;
+        }
+        // Punkt musi znajdować się
+        // wewnątrz koła o promieniu a.
+        //
+        // norm(x0) = sqrt(x1^2 + x2^2)
+
+        while (norm(x0) > a);
+
+        cout << x0 << endl << endl;
+
+        // ZEWNĘTRZNA FUNKCJA KARY
+        //
+        // ff3Ta - funkcja celu z karą zewnętrzną.
+        // a     - parametr ograniczenia.
+
+        opt = pen(ff3Ta, x0, c_ex, dc_ex, epsilon, Nmax, a);
+
+        cout << opt << endl;
+
+        // Wyświetlamy odległość znalezionego punktu
+        // od początku układu współrzędnych.
+        //
+        // Ta wartość jest potrzebna w Tabeli 1 (kolumna r*).
+
+        cout << norm(opt.x) << endl << endl;
+
+        // Zerujemy licznik wywołań funkcji celu
+        // przed uruchomieniem kolejnej metody.
+
+        solution::clear_calls();
+
+        // WEWNĘTRZNA FUNKCJA KARY
+        //
+        // Używamy tego samego punktu początkowego x0.
+
+        opt = pen(ff3Tb, x0, c_in, dc_in, epsilon, Nmax, a);
+
+        cout << opt << endl;
+        cout << norm(opt.x) << endl << endl;
+
+        solution::clear_calls();
+    }
+
+    // ==========================================
+    // CZĘŚĆ 2 - PROBLEM RZECZYWISTY
+    // ==========================================
+
+    if (0) // Rzut piłka
+    {
+        // Dla problemu rzeczywistego
+        // stosujemy wyłącznie zewnętrzną funkcję kary.
+
+        c_ex = 1;
+        dc_ex = 2;
+
+        epsilon = 1e-4;
+        Nmax = 10000;
+
+        // Losowanie dwóch parametrów:
+        //
+        // x0(0) - początkowa prędkość pozioma v0x
+        // x0(1) - prędkość kątowa omega
+        //
+        // Oba parametry należą do przedziału [-10,10].
+        x0 = matrix(2, 1);
+
+        x0(0) = 20 * m2d(rand_mat()) - 10;
+        x0(1) = 20 * m2d(rand_mat()) - 10;
+
+        cout << x0 << endl << endl;
+
+        // Optymalizacja parametrów lotu piłki.
+        //
+        // ff3R - funkcja celu z zewnętrzną funkcją kary.
+
+        opt = pen(ff3R, x0, c_ex, dc_ex, epsilon, Nmax);
+
+        // W funkcji ff3R minimalizujemy ujemny zasięg.
+        //
+        // Zmieniamy znak wartości funkcji celu,
+        // aby wyświetlić dodatnią wartość.
+
+        opt.y = -opt.y;
+
+        cout << opt << endl;
+
+        solution::clear_calls();
+
+        // SYMULACJA DLA ZNALEZIONYCH PARAMETRÓW
+        //
+        // Wektor warunków początkowych:
+        //
+        // Y0(0) = x(0)     = 0 m
+        // Y0(1) = vx(0)    = opt.x(0)
+        // Y0(2) = y(0)     = 100 m
+        // Y0(3) = vy(0)    = 0 m/s
+
+        matrix Y0 = matrix(4, new double[4] { 0, opt.x(0), 100, 0 });
+
+        // Rozwiązujemy równania ruchu.
+        //
+        // t0 = 0 s
+        // dt = 0.01 s
+        // tend = 7 s
+        // opt.x(1) - optymalna prędkość kątowa
+
+        matrix* Y = solve_ode(df3, 0, 0.01, 7, Y0, NAN, opt.x(1));
+
+        // Szukamy:
+        //
+        // i50 - indeksu punktu, w którym y jest najbliższe 50 m
+        // i0  - indeksu punktu, w którym y jest najbliższe 0 m
+
+        int n = get_len(Y[0]), i50 = 0, i0 = 0;
+
+        for (int i = 0; i < n; ++i)
+        {
+            // Szukamy punktu na wysokości około 50 m.
+
+            if (abs(Y[1](i, 2) - 50) < abs(Y[1](i50, 2) - 50))
+                i50 = i;
+
+            // Szukamy punktu uderzenia w podłoże,
+            // czyli położenia y ≈ 0.
+
+            if (abs(Y[1](i, 2)) < abs(Y[1](i0, 2)))
+                i0 = i;
+        }
+
+        // Współrzędna pozioma przy y ≈ 50 m.
+        // Powinna należeć do przedziału [3,7] m.
+
+        cout << endl << "x50 = " << Y[1](i50, 0) << endl;
+
+        // Zasięg poziomy piłki w momencie uderzenia w podłoże.
+
+        cout << endl << "xend = " << Y[1](i0, 0) << endl;
+
+        // Zapisujemy symulację do pliku CSV.
+        //
+        // Kolejne kolumny:
+        // t, x, vx, y, vy
+
+        ofstream Sout("symulacja_lab3.csv");
+
+        Sout << hcat(Y[0], Y[1]);
+
+        Sout.close();
+
+        Y[0].~matrix();
+        Y[1].~matrix();
+    }
+
+    // ==========================================
+    // CZĘŚĆ 3 - TEST MODELU PIŁKI
+    // ==========================================
+
+    if (1) // Test modelu
+    {
+        // Parametry testowe:
+        //
+        // v0x = 5 m/s
+        // omega = 10 rad/s
+        //
+        // Nie wykonujemy tutaj optymalizacji.
+        // Sprawdzamy wyłącznie model matematyczny.
+
+        matrix Y0 = matrix(4, new double[4] { 0, 5, 100, 0 });
+
+        matrix* Y = solve_ode(df3, 0, 0.01, 7, Y0, NAN, 10);
+
+        // Zapisujemy trajektorię do pliku CSV.
+
+        ofstream Sout("symulacja_lab3.csv");
+
+        Sout << hcat(Y[0], Y[1]);
+
+        Sout.close();
+
+        Y[0].~matrix();
+        Y[1].~matrix();
+    }
 }
 
 void lab4()
