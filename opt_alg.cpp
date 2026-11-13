@@ -737,12 +737,76 @@ solution Rosen(matrix(*ff)(matrix, matrix, matrix), matrix x0, matrix s0, double
 	}
 }
 
-solution pen(matrix(*ff)(matrix, matrix, matrix), matrix x0, double c, double dc, double epsilon, int Nmax, matrix ud1, matrix ud2)
+solution pen(matrix(*ff)(matrix, matrix, matrix), matrix x0,
+	double c, double dc, double epsilon, int Nmax,
+	matrix ud1, matrix ud2)
 {
 	try {
 		solution Xopt;
-		//Tu wpisz kod funkcji
 
+		// Parametry metody Neldera-Meada:
+		// alpha - wspolczynnik odbicia
+		// beta  - wspolczynnik zawezenia
+		// gamma - wspolczynnik ekspansji
+		// delta - wspolczynnik redukcji sympleksu
+		// s     - dlugosc boku sympleksu poczatkowego
+		double alpha = 1, beta = 0.5, gamma = 2, delta = 0.5, s = 0.5;
+
+		// X  - punkt poczatkowy aktualnej optymalizacji
+		// X1 - wynik uzyskany w kolejnej optymalizacji
+		//      metoda Neldera-Meada
+		solution X(x0), X1;
+
+		while (true)
+		{
+			// Minimalizujemy funkcje celu z uwzgledniona kara.
+			//
+			// Do ud1 przekazujemy dodatkowe parametry funkcji celu,
+			// np. promien ograniczenia a dla funkcji testowej.
+			//
+			// W miejscu ud2 przekazujemy aktualny
+			// wspolczynnik kary c.
+			X1 = sym_NM(ff, X.x, s, alpha, beta, gamma,
+				delta, epsilon, Nmax, ud1, c);
+
+			// Pierwsze kryterium stopu:
+			// sprawdzamy, czy kolejne rozwiazania sa
+			// dostatecznie blisko siebie.
+			//
+			// Jesli odleglosc jest mniejsza od epsilon,
+			// uznajemy optymalizacje za zakonczona.
+			if (norm(X.x - X1.x) < epsilon)
+			{
+				Xopt = X1;
+				Xopt.flag = 1;
+				break;
+			}
+
+			// Drugie kryterium stopu:
+			// sprawdzamy, czy przekroczono dopuszczalna
+			// liczbe wywolan funkcji celu.
+			if (solution::f_calls > Nmax)
+			{
+				Xopt = X1;
+				Xopt.flag = 0;
+				break;
+			}
+
+			// Aktualizujemy wspolczynnik kary.
+			//
+			// Dla kary zewnetrznej:
+			// dc > 1, wiec kara rosnie.
+			//
+			// Dla kary wewnetrznej:
+			// 0 < dc < 1, wiec wspolczynnik maleje.
+			c *= dc;
+
+			// Rozwiazanie z poprzedniej optymalizacji
+			// staje sie punktem startowym kolejnej.
+			X = X1;
+		}
+
+		// Zwracamy koncowe rozwiazanie.
 		return Xopt;
 	}
 	catch (string ex_info)
@@ -751,13 +815,220 @@ solution pen(matrix(*ff)(matrix, matrix, matrix), matrix x0, double c, double dc
 	}
 }
 
-solution sym_NM(matrix(*ff)(matrix, matrix, matrix), matrix x0, double s, double alpha, double beta, double gamma, double delta, double epsilon, int Nmax, matrix ud1, matrix ud2)
+
+solution sym_NM(matrix(*ff)(matrix, matrix, matrix), matrix x0,
+	double s, double alpha, double beta, double gamma,
+	double delta, double epsilon, int Nmax,
+	matrix ud1, matrix ud2)
 {
 	try
 	{
 		solution Xopt;
-		//Tu wpisz kod funkcji
 
+		// Liczba zmiennych funkcji celu.
+		// Dla funkcji testowej i problemu pilki n = 2.
+		int n = get_len(x0);
+
+		// Macierz jednostkowa.
+		// Jej kolumny okreslaja kierunki osi ukladu wspolrzednych.
+		matrix D = ident_mat(n);
+
+		// Sympleks w przestrzeni n-wymiarowej
+		// ma n+1 wierzcholkow.
+		//
+		// Dla n = 2 sympleks jest trojkatem.
+		int N = n + 1;
+
+		// Tworzymy tablice wierzcholkow sympleksu.
+		solution* S = new solution[N];
+
+		// Pierwszy wierzcholek to punkt poczatkowy.
+		S[0].x = x0;
+
+		// Obliczamy funkcje celu w pierwszym wierzcholku.
+		S[0].fit_fun(ff, ud1, ud2);
+
+		// Wyznaczamy pozostale wierzcholki sympleksu.
+		//
+		// Kazdy powstaje przez przesuniecie punktu x0
+		// o dlugosc s wzdluz kolejnej osi.
+		for (int i = 1; i < N; ++i)
+		{
+			S[i].x = S[0].x + s * D[i - 1];
+
+			// Obliczamy funkcje celu w nowym wierzcholku.
+			S[i].fit_fun(ff, ud1, ud2);
+		}
+
+		// PO - punkt po odbiciu
+		// PE - punkt po ekspansji
+		// PZ - punkt po zawezeniu
+		solution PO, PE, PZ;
+
+		// Srodek ciezkosci wierzcholkow
+		// z pominieciem najgorszego punktu.
+		matrix pc;
+
+		// Indeksy najlepszego i najgorszego wierzcholka.
+		int i_min, i_max;
+
+		while (true)
+		{
+			// Na poczatku zakladamy, ze pierwszy punkt
+			// jest jednoczesnie najlepszy i najgorszy.
+			i_min = i_max = 0;
+
+			// Szukamy najlepszego i najgorszego wierzcholka.
+			//
+			// Najlepszy - najmniejsza wartosc funkcji celu.
+			// Najgorszy - najwieksza wartosc funkcji celu.
+			for (int i = 1; i < N; ++i)
+			{
+				if (S[i_min].y > S[i].y)
+					i_min = i;
+
+				if (S[i_max].y < S[i].y)
+					i_max = i;
+			}
+
+			// Inicjalizujemy wektor srodka ciezkosci.
+			pc = matrix(n, 1);
+
+			// Sumujemy wspolrzedne wszystkich wierzcholkow
+			// oprocz najgorszego.
+			for (int i = 0; i < N; ++i)
+				if (i != i_max)
+					pc = pc + S[i].x;
+
+			// Dzielimy przez liczbe uwzglednionych wierzcholkow.
+			// Otrzymujemy ich srodek ciezkosci.
+			pc = pc / (N - 1.0);
+
+			// =====================================================
+			// ETAP 1: ODBICIE
+			// =====================================================
+
+			// Odbijamy najgorszy wierzcholek
+			// wzgledem srodka ciezkosci.
+			PO.x = pc + alpha * (pc - S[i_max].x);
+
+			// Obliczamy funkcje celu w punkcie odbitym.
+			PO.fit_fun(ff, ud1, ud2);
+
+			// Jezeli odbicie daje wynik lepszy od najgorszego,
+			// ale nie lepszy od najlepszego,
+			// zastepujemy najgorszy wierzcholek punktem odbitym.
+			if (S[i_min].y <= PO.y && PO.y < S[i_max].y)
+				S[i_max] = PO;
+
+			// =====================================================
+			// ETAP 2: EKSPANSJA
+			// =====================================================
+
+			// Jezeli punkt odbity jest lepszy
+			// od najlepszego dotychczasowego,
+			// probujemy wykonac dluzszy krok.
+			else if (PO.y < S[i_min].y)
+			{
+				// Wyznaczamy punkt ekspansji.
+				PE.x = pc + gamma * (PO.x - pc);
+
+				// Obliczamy w nim funkcje celu.
+				PE.fit_fun(ff, ud1, ud2);
+
+				// Jezeli ekspansja jest lepsza od odbicia,
+				// przyjmujemy punkt ekspansji.
+				if (PE.y < PO.y)
+					S[i_max] = PE;
+
+				// W przeciwnym razie pozostajemy
+				// przy punkcie odbitym.
+				else
+					S[i_max] = PO;
+			}
+
+			// =====================================================
+			// ETAP 3: ZAWEZENIE LUB REDUKCJA
+			// =====================================================
+
+			// Wchodzimy tutaj, gdy odbicie
+			// nie przynioslo wystarczajacej poprawy.
+			else
+			{
+				// Wyznaczamy punkt zawezenia,
+				// polozony miedzy najgorszym wierzcholkiem
+				// a srodkiem ciezkosci.
+				PZ.x = pc + beta * (S[i_max].x - pc);
+
+				// Obliczamy wartosc funkcji celu.
+				PZ.fit_fun(ff, ud1, ud2);
+
+				// Jesli zawezenie poprawia wynik,
+				// zastepujemy najgorszy punkt.
+				if (PZ.y < S[i_max].y)
+					S[i_max] = PZ;
+
+				// Jezeli zawezenie nie daje poprawy,
+				// zmniejszamy caly sympleks.
+				else
+				{
+					// Wszystkie wierzcholki poza najlepszym
+					// przesuwamy w jego kierunku.
+					//
+					// Dla delta = 0.5 kazdy przesuwany
+					// wierzcholek znajduje sie w polowie
+					// odleglosci od najlepszego.
+					for (int i = 0; i < N; ++i)
+						if (i != i_min)
+						{
+							S[i].x = delta * (S[i].x + S[i_min].x);
+
+							// Po przesunieciu ponownie obliczamy
+							// wartosc funkcji celu.
+							S[i].fit_fun(ff, ud1, ud2);
+						}
+				}
+			}
+
+			// =====================================================
+			// ETAP 4: SPRAWDZENIE KRYTERIOW STOPU
+			// =====================================================
+
+			// Obliczamy najwieksza odleglosc
+			// wierzcholkow sympleksu od najlepszego punktu.
+			double max_s = norm(S[0].x - S[i_min].x);
+
+			for (int i = 1; i < N; ++i)
+				if (max_s < norm(S[i].x - S[i_min].x))
+					max_s = norm(S[i].x - S[i_min].x);
+
+			// Pierwsze kryterium stopu:
+			// jezeli wszystkie wierzcholki znajduja sie
+			// w odleglosci mniejszej niz epsilon
+			// od najlepszego punktu, konczymy optymalizacje.
+			if (max_s < epsilon)
+			{
+				Xopt = S[i_min];
+				Xopt.flag = 1;
+				break;
+			}
+
+			// Drugie kryterium stopu:
+			// przekroczenie maksymalnej liczby
+			// wywolan funkcji celu.
+			if (solution::f_calls > Nmax)
+			{
+				Xopt = S[i_min];
+				Xopt.flag = 0;
+				break;
+			}
+		}
+
+		// Zwalniamy pamiec zajmowana przez tablice
+		// wierzcholkow sympleksu.
+		delete[] S;
+
+		// Zwracamy znalezione rozwiazanie.
 		return Xopt;
 	}
 	catch (string ex_info)
