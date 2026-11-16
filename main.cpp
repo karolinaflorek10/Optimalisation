@@ -10,6 +10,8 @@ Data ostatniej modyfikacji: 15.09.2026
 
 #include"opt_alg.h"
 #include <iomanip>
+#include <algorithm>
+using namespace std;
 
 void lab0();
 void lab1();
@@ -652,7 +654,7 @@ void lab3()
     // CZĘŚĆ 1 - FUNKCJA TESTOWA
     // ==========================================
 
-    if (0) // Funkcja testowa
+    if (1) // Funkcja testowa
     {
         // Parametr ograniczenia:
         //
@@ -696,57 +698,101 @@ void lab3()
         // Po przekształceniu otrzymujemy współrzędne
         // z przedziału [1,6].
 
-        do
+        ofstream plik_t1("tabela1.csv");
+        plik_t1 << "Parametr a;Lp.;x1(0);x2(0);x1*;x2*;r*;y*;Liczba wywołań funkcji celu;x1*;x2*;r*;y*;Liczba wywołań funkcji celu\n";
+
+        ofstream plik_t2("tabela2.csv");
+        plik_t2 << "Parametr a;x1*;x2*;r*;y*;Liczba wywołań funkcji celu;x1*;x2*;r*;y*;Liczba wywołań funkcji celu\n";
+
+        double param_a[3] = { 4.0, 4.4934, 5.0 };
+
+        for (int idx_a = 0; idx_a < 3; ++idx_a)
         {
-            x0 = 5 * rand_mat(2, 1) + 1;
+            double a_val = param_a[idx_a];
+            matrix a_mat(a_val);
+
+            double sum_ext_x1 = 0, sum_ext_x2 = 0, sum_ext_r = 0, sum_ext_y = 0, sum_ext_calls = 0;
+            double sum_int_x1 = 0, sum_int_x2 = 0, sum_int_r = 0, sum_int_y = 0, sum_int_calls = 0;
+
+            for (int i = 0; i < 100; ++i)
+            {
+                // Losowanie punktu początkowego wewnątrz koła o promieniu a
+                do
+                {
+                    x0 = a_val * rand_mat(2, 1);
+                    // Ewentualnie przesunięcie/skalowanie, w konspekcie często losuje się z przedziału:
+                    // x0 = 5 * rand_mat(2, 1) + 1; zobacz oryginalny zapis w szablonie:
+                } while (norm(x0) > a_val);
+
+                double x0_1 = m2d(x0(0));
+                double x0_2 = m2d(x0(1));
+
+                // 1. Zewnętrzna funkcja kary
+                solution::clear_calls();
+                solution opt_ext = pen(ff3Ta, x0, c_ex, dc_ex, epsilon, Nmax, a_mat);
+                double calls_ext = solution::f_calls;
+                double r_ext = norm(opt_ext.x);
+                double y_ext = m2d(opt_ext.y);
+
+                sum_ext_x1 += m2d(opt_ext.x(0));
+                sum_ext_x2 += m2d(opt_ext.x(1));
+                sum_ext_r += r_ext;
+                sum_ext_y += y_ext;
+                sum_ext_calls += calls_ext;
+
+                // 2. Wewnętrzna funkcja kary
+                solution::clear_calls();
+                solution opt_int = pen(ff3Tb, x0, c_in, dc_in, epsilon, Nmax, a_mat);
+                double calls_int = solution::f_calls;
+                double r_int = norm(opt_int.x);
+                double y_int = m2d(opt_int.y);
+
+                sum_int_x1 += m2d(opt_int.x(0));
+                sum_int_x2 += m2d(opt_int.x(1));
+                sum_int_r += r_int;
+                sum_int_y += y_int;
+                sum_int_calls += calls_int;
+
+                // Zapis wiersza do Tabela 1
+                plik_t1 << to_csv_str(a_val) << ";"
+                         << (i + 1) << ";"
+                         << to_csv_str(x0_1) << ";"
+                         << to_csv_str(x0_2) << ";"
+                         << to_csv_str(m2d(opt_ext.x(0))) << ";"
+                         << to_csv_str(m2d(opt_ext.x(1))) << ";"
+                         << to_csv_str(r_ext) << ";"
+                         << to_csv_str(y_ext) << ";"
+                         << calls_ext << ";"
+                         << to_csv_str(m2d(opt_int.x(0))) << ";"
+                         << to_csv_str(m2d(opt_int.x(1))) << ";"
+                         << to_csv_str(r_int) << ";"
+                         << to_csv_str(y_int) << ";"
+                         << calls_int << "\n";
+            }
+
+            // Zapis wiersza średnich do Tabela 2
+            plik_t2 << to_csv_str(a_val) << ";"
+                     << to_csv_str(sum_ext_x1 / 100.0) << ";"
+                     << to_csv_str(sum_ext_x2 / 100.0) << ";"
+                     << to_csv_str(sum_ext_r / 100.0) << ";"
+                     << to_csv_str(sum_ext_y / 100.0) << ";"
+                     << to_csv_str(sum_ext_calls / 100.0) << ";"
+                     << to_csv_str(sum_int_x1 / 100.0) << ";"
+                     << to_csv_str(sum_int_x2 / 100.0) << ";"
+                     << to_csv_str(sum_int_r / 100.0) << ";"
+                     << to_csv_str(sum_int_y / 100.0) << ";"
+                     << to_csv_str(sum_int_calls / 100.0) << "\n";
         }
-        // Punkt musi znajdować się
-        // wewnątrz koła o promieniu a.
-        //
-        // norm(x0) = sqrt(x1^2 + x2^2)
 
-        while (norm(x0) > a);
-
-        cout << x0 << endl << endl;
-
-        // ZEWNĘTRZNA FUNKCJA KARY
-        //
-        // ff3Ta - funkcja celu z karą zewnętrzną.
-        // a     - parametr ograniczenia.
-
-        opt = pen(ff3Ta, x0, c_ex, dc_ex, epsilon, Nmax, a);
-
-        cout << opt << endl;
-
-        // Wyświetlamy odległość znalezionego punktu
-        // od początku układu współrzędnych.
-        //
-        // Ta wartość jest potrzebna w Tabeli 1 (kolumna r*).
-
-        cout << norm(opt.x) << endl << endl;
-
-        // Zerujemy licznik wywołań funkcji celu
-        // przed uruchomieniem kolejnej metody.
-
-        solution::clear_calls();
-
-        // WEWNĘTRZNA FUNKCJA KARY
-        //
-        // Używamy tego samego punktu początkowego x0.
-
-        opt = pen(ff3Tb, x0, c_in, dc_in, epsilon, Nmax, a);
-
-        cout << opt << endl;
-        cout << norm(opt.x) << endl << endl;
-
-        solution::clear_calls();
+        plik_t1.close();
+        plik_t2.close();
     }
 
     // ==========================================
     // CZĘŚĆ 2 - PROBLEM RZECZYWISTY
     // ==========================================
 
-    if (0) // Rzut piłka
+    if (1) // Rzut piłka
     {
         // Dla problemu rzeczywistego
         // stosujemy wyłącznie zewnętrzną funkcję kary.
@@ -765,87 +811,58 @@ void lab3()
         // Oba parametry należą do przedziału [-10,10].
         x0 = matrix(2, 1);
 
-        x0(0) = 20 * m2d(rand_mat()) - 10;
-        x0(1) = 20 * m2d(rand_mat()) - 10;
+        double v0x_start = 20 * m2d(rand_mat()) - 10;
+        double omega_start = 20 * m2d(rand_mat()) - 10;
+        x0(0) = v0x_start;
+        x0(1) = omega_start;
 
-        cout << x0 << endl << endl;
-
-        // Optymalizacja parametrów lotu piłki.
-        //
-        // ff3R - funkcja celu z zewnętrzną funkcją kary.
-
-        opt = pen(ff3R, x0, c_ex, dc_ex, epsilon, Nmax);
-
-        // W funkcji ff3R minimalizujemy ujemny zasięg.
-        //
-        // Zmieniamy znak wartości funkcji celu,
-        // aby wyświetlić dodatnią wartość.
-
-        opt.y = -opt.y;
-
-        cout << opt << endl;
+        cout << "Punkt startowy:\n" << x0 << endl << endl;
 
         solution::clear_calls();
+        opt = pen(ff3R, x0, c_ex, dc_ex, epsilon, Nmax);
+        
+        // Zmiana znaku wartości funkcji celu na dodatni (bo minimalizowaliśmy ujemny zasięg)
+        opt.y = -opt.y;
+
+        cout << "Wynik optymalizacji:\n" << opt << endl;
 
         // SYMULACJA DLA ZNALEZIONYCH PARAMETRÓW
-        //
-        // Wektor warunków początkowych:
-        //
-        // Y0(0) = x(0)     = 0 m
-        // Y0(1) = vx(0)    = opt.x(0)
-        // Y0(2) = y(0)     = 100 m
-        // Y0(3) = vy(0)    = 0 m/s
-
         matrix Y0 = matrix(4, new double[4] { 0, opt.x(0), 100, 0 });
-
-        // Rozwiązujemy równania ruchu.
-        //
-        // t0 = 0 s
-        // dt = 0.01 s
-        // tend = 7 s
-        // opt.x(1) - optymalna prędkość kątowa
-
         matrix* Y = solve_ode(df3, 0, 0.01, 7, Y0, NAN, opt.x(1));
 
-        // Szukamy:
-        //
-        // i50 - indeksu punktu, w którym y jest najbliższe 50 m
-        // i0  - indeksu punktu, w którym y jest najbliższe 0 m
-
         int n = get_len(Y[0]), i50 = 0, i0 = 0;
-
         for (int i = 0; i < n; ++i)
         {
-            // Szukamy punktu na wysokości około 50 m.
-
             if (abs(Y[1](i, 2) - 50) < abs(Y[1](i50, 2) - 50))
                 i50 = i;
-
-            // Szukamy punktu uderzenia w podłoże,
-            // czyli położenia y ≈ 0.
-
             if (abs(Y[1](i, 2)) < abs(Y[1](i0, 2)))
                 i0 = i;
         }
 
-        // Współrzędna pozioma przy y ≈ 50 m.
-        // Powinna należeć do przedziału [3,7] m.
-
         cout << endl << "x50 = " << Y[1](i50, 0) << endl;
-
-        // Zasięg poziomy piłki w momencie uderzenia w podłoże.
-
         cout << endl << "xend = " << Y[1](i0, 0) << endl;
 
-        // Zapisujemy symulację do pliku CSV.
-        //
-        // Kolejne kolumny:
-        // t, x, vx, y, vy
+        // --- ZAPIS TABELI 3 (tego brakowało w oryginalnym mainie) ---
+        ofstream plik_t3("tabela3.csv");
+        plik_t3 << "v0x(0);ω(0);v0x*;ω*;xend*;x* dla y = 50m;Liczba wywołań funkcji celu\n";
+        plik_t3 << to_csv_str(v0x_start) << ";"
+                 << to_csv_str(omega_start) << ";"
+                 << to_csv_str(m2d(opt.x(0))) << ";"
+                 << to_csv_str(m2d(opt.x(1))) << ";"
+                 << to_csv_str(Y[1](i0, 0)) << ";"
+                 << to_csv_str(Y[1](i50, 0)) << ";"
+                 << solution::f_calls << "\n";
+        plik_t3.close();
 
+        // --- ZAPIS SYMULACJI DO PLIKU ---
         ofstream Sout("symulacja_lab3.csv");
-
-        Sout << hcat(Y[0], Y[1]);
-
+        Sout << "t;x;y\n";
+        for (int i = 0; i < n; ++i)
+        {
+            Sout << to_csv_str(Y[0](i)) << ";"        // Czas t
+                 << to_csv_str(Y[1](i, 0)) << ";"     // Położenie x
+                 << to_csv_str(Y[1](i, 2)) << "\n";
+        }
         Sout.close();
 
         Y[0].~matrix();
@@ -856,7 +873,7 @@ void lab3()
     // CZĘŚĆ 3 - TEST MODELU PIŁKI
     // ==========================================
 
-    if (1) // Test modelu
+    if (0) // Test modelu
     {
         // Parametry testowe:
         //
