@@ -371,27 +371,62 @@ matrix ff3R(matrix x, matrix ud1, matrix ud2)
 	// i50 - indeks punktu, dla którego y jest najbliższe 50 m
 	// i0 - indeks punktu, dla którego y jest najbliższe 0 m
 
-	int i50 = 0, i0 = 0;
+	//int i50 = 0, i0 = 0;
+	double x50 = 0.0;
+    double xend = 0.0;
+    bool found50 = false;
+    bool foundEnd = false;
 
-	for (int i = 0; i < n; ++i)
+	for (int i = 0; i < n-1; ++i)
 	{
+
+		double y1 = Y[1](i, 2);
+        double y2 = Y[1](i + 1, 2);
+
+		if (!found50 && ((y1 >= 50.0 && y2 <= 50.0) || (y1 <= 50.0 && y2 >= 50.0)))
+        {
+            double x1 = Y[1](i, 0);
+            double x2 = Y[1](i + 1, 0);
+            if (y2 != y1)
+                x50 = x1 + (50.0 - y1) * (x2 - x1) / (y2 - y1);
+            else
+                x50 = x1;
+            found50 = true;
+        }
+
+		if (!foundEnd && y1 >= 0.0 && y2 < 0.0)
+        {
+            double x1 = Y[1](i, 0);
+            double x2 = Y[1](i + 1, 0);
+            if (y2 != y1)
+                xend = x1 + (0.0 - y1) * (x2 - x1) / (y2 - y1);
+            else
+                xend = x1;
+            foundEnd = true;
+            break;
+        }
 		// Szukamy położenia piłki na wysokości około 50 m.
 
-		if (abs(Y[1](i, 2) - 50) < abs(Y[1](i50, 2) - 50))
-			i50 = i;
+		//if (abs(Y[1](i, 2) - 50) < abs(Y[1](i50, 2) - 50))
+		//	i50 = i;
 
 		// Szukamy punktu uderzenia w podłoże.
 
-		if (abs(Y[1](i, 2)) < abs(Y[1](i0, 2)))
-			i0 = i;
+		//if (abs(Y[1](i, 2)) < abs(Y[1](i0, 2)))
+		//	i0 = i;
 	}
+
+	if (!foundEnd) xend = Y[1](n - 1, 0);
+    if (!found50)  x50 = Y[1](n - 1, 0);
+
 
 	// Funkcja celu:
 	//
 	// Minimalizujemy ujemny zasięg.
 	// xend to położenie poziome przy y ≈ 0.
 
-	y = -Y[1](i0, 0);
+	y = -xend;
+	//y = -Y[1](i0, 0);
 
 	// OGRANICZENIE 1
 	//
@@ -426,9 +461,11 @@ matrix ff3R(matrix x, matrix ud1, matrix ud2)
 	// Jeżeli warunek jest niespełniony,
 	// dodajemy karę zewnętrzną.
 
-	if (abs(Y[1](i50, 0) - 5) - 2 > 0)
-		y = y + ud2 * pow(abs(Y[1](i50, 0) - 5) - 2, 2);
+	if (abs(x50 - 5) - 2 > 0)
+		y = y + ud2 * pow(abs(x50 - 5) - 2, 2);
 
+
+	delete[] Y;
 	// Zwracamy ujemny zasięg powiększony o ewentualne kary.
 
 	return y;

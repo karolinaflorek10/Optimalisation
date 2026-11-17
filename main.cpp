@@ -831,30 +831,63 @@ void lab3()
         matrix Y0 = matrix(4, new double[4] { 0, opt.x(0), 100, 0 });
         matrix* Y = solve_ode(df3, 0, 0.01, 7, Y0, NAN, opt.x(1));
 
-        int n = get_len(Y[0]), i50 = 0, i0 = 0;
-        for (int i = 0; i < n; ++i)
+        int n = get_len(Y[0]);
+        double x50_interp = 0.0;
+        double xend_interp = 0.0;
+        bool found50 = false;
+        bool foundEnd = false;
+
+        for (int i = 0; i < n-1; ++i)
         {
-            if (abs(Y[1](i, 2) - 50) < abs(Y[1](i50, 2) - 50))
-                i50 = i;
-            if (Y[1](i, 2) <= 0.0)
+
+            double y1 = Y[1](i, 2);
+            double y2 = Y[1](i + 1, 2);
+
+            if (!found50 && ((y1 >= 50.0 && y2 <= 50.0) || (y1 <= 50.0 && y2 >= 50.0)))
             {
-                i0 = i;
+                double x1 = Y[1](i, 0);
+                double x2 = Y[1](i + 1, 0);
+                if (y2 != y1)
+                    x50_interp = x1 + (50.0 - y1) * (x2 - x1) / (y2 - y1);
+                else
+                    x50_interp = x1;
+                found50 = true;
+            }
+            if (!foundEnd && y1 >= 0.0 && y2 < 0.0)
+            {
+                double x1 = Y[1](i, 0);
+                double x2 = Y[1](i + 1, 0);
+                if (y2 != y1)
+                    xend_interp = x1 + (0.0 - y1) * (x2 - x1) / (y2 - y1);
+                else
+                    xend_interp = x1;
+                foundEnd = true;
                 break;
             }
+
+           // if (abs(Y[1](i, 2) - 50) < abs(Y[1](i50, 2) - 50))
+             //   i50 = i;
+            //if (Y[1](i, 2) <= 0.0)
+            //{
+              //  i0 = i;
+                //break;
+            //}
         }
+        if (!foundEnd) xend_interp = Y[1](n - 1, 0);
+        if (!found50)  x50_interp = Y[1](n - 1, 0);
 
-        cout << endl << "x50 = " << Y[1](i50, 0) << endl;
-        cout << endl << "xend = " << Y[1](i0, 0) << endl;
+        cout << endl << "x50 = " << x50_interp << endl;
+        cout << endl << "xend = " << xend_interp << endl;
 
-        // --- ZAPIS TABELI 3 (tego brakowało w oryginalnym mainie) ---
+        // --- ZAPIS TABELI 3 ---
         ofstream plik_t3("tabela3.csv");
         plik_t3 << "v0x(0);ω(0);v0x*;ω*;xend*;x* dla y = 50m;Liczba wywołań funkcji celu\n";
         plik_t3 << to_csv_str(v0x_start) << ";"
                  << to_csv_str(omega_start) << ";"
                  << to_csv_str(m2d(opt.x(0))) << ";"
                  << to_csv_str(m2d(opt.x(1))) << ";"
-                 << to_csv_str(Y[1](i0, 0)) << ";"
-                 << to_csv_str(Y[1](i50, 0)) << ";"
+                 << to_csv_str(xend_interp) << ";"
+                 << to_csv_str(x50_interp) << ";"
                  << solution::f_calls << "\n";
         plik_t3.close();
 
