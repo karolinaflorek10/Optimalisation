@@ -665,7 +665,9 @@ void lab3()
         //
         // Tutaj rozpatrujemy przypadek a = 4.
 
-        matrix a(4);
+        //matrix a(4);
+
+        double param_a[3] = { 4.0, 4.4934, 5.0 };
 
         // Początkowa wartość współczynnika kary zewnętrznej.
         c_ex = 1;
@@ -704,7 +706,7 @@ void lab3()
         ofstream plik_t2("tabela2.csv");
         plik_t2 << "Parametr a;x1*;x2*;r*;y*;Liczba wywołań funkcji celu;x1*;x2*;r*;y*;Liczba wywołań funkcji celu\n";
 
-        double param_a[3] = { 4.0, 4.4934, 5.0 };
+    
 
         for (int idx_a = 0; idx_a < 3; ++idx_a)
         {
@@ -719,10 +721,9 @@ void lab3()
                 // Losowanie punktu początkowego wewnątrz koła o promieniu a
                 do
                 {
-                    x0 = a_val * rand_mat(2, 1);
-                    // Ewentualnie przesunięcie/skalowanie, w konspekcie często losuje się z przedziału:
-                    // x0 = 5 * rand_mat(2, 1) + 1; zobacz oryginalny zapis w szablonie:
-                } while (norm(x0) > a_val);
+                    x0 = 5 * rand_mat(2, 1) + 1;
+                
+                } while (norm(x0) > a_val || m2d(x0(0)) < 1.0 || m2d(x0(1)) < 1.0);
 
                 double x0_1 = m2d(x0(0));
                 double x0_2 = m2d(x0(1));
@@ -835,8 +836,11 @@ void lab3()
         {
             if (abs(Y[1](i, 2) - 50) < abs(Y[1](i50, 2) - 50))
                 i50 = i;
-            if (abs(Y[1](i, 2)) < abs(Y[1](i0, 2)))
+            if (Y[1](i, 2) <= 0.0)
+            {
                 i0 = i;
+                break;
+            }
         }
 
         cout << endl << "x50 = " << Y[1](i50, 0) << endl;
