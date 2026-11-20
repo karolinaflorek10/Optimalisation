@@ -545,6 +545,193 @@ matrix df3(double t, matrix Y, matrix ud1, matrix ud2)
     return dY;
 }
 
+//------------------------
+// Funkcje do zaimplementowania:
+// 1. ff4T() - testowa funkcja celu
+// 2. gf4T() - gradient funkcji testowej
+// 3. Hf4T() - hesjan funkcji testowej
+// 4. ff4R() - funkcja kosztu regresji
+// 5. gf4R() - gradient funkcji kosztu regresji
+// 6. df4()
+
+matrix ff4T(matrix x, matrix ud1, matrix ud2)
+{
+	matrix y;
+
+	if (isnan(ud2(0, 0)))
+	{
+		// Zwykle wywolanie funkcji celu.
+
+		y = pow(x(0), 6) / 6.0
+			- 1.05 * pow(x(0), 4)
+			+ 2.0 * pow(x(0), 2)
+			+ pow(x(1), 2)
+			+ x(0) * x(1);
+	}
+	else
+	{
+		// Funkcja wywolywana podczas
+		// poszukiwania optymalnej dlugosci kroku.
+		//
+		// ud2[0] - aktualny punkt
+		// ud2[1] - kierunek poszukiwania
+		// x      - dlugosc kroku h
+
+		y = ff4T(ud2[0] + x * ud2[1], ud1);
+	}
+
+	return y;
+}
+
+matrix gf4T(matrix x, matrix ud1, matrix ud2)
+{
+	// Gradient sklada sie z dwoch elementow.
+	matrix g(2, 1);
+
+	// Pochodna po x1.
+	g(0) = pow(x(0), 5)
+		- 4.2 * pow(x(0), 3)
+		+ 4.0 * x(0)
+		+ x(1);
+
+	// Pochodna po x2.
+	g(1) = x(0) + 2.0 * x(1);
+
+	return g;
+}
+
+matrix ff4R(matrix x, matrix ud1, matrix ud2)
+{
+	matrix y;
+
+	if (isnan(ud2(0, 0)))
+	{
+		// Liczba pomiarow.
+		int m = 100;
+
+		// Liczba wspolczynnikow modelu.
+		int n = get_len(x);
+
+		// X - macierz danych uczacych 5x100.
+		// Y - wektor pomiarow 1x100.
+		static matrix X(n, m), Y(1, m);
+
+		// Dane wczytujemy tylko raz.
+		static bool read = true;
+
+		if (read)
+		{
+			ifstream S("XData.txt");
+
+			S >> X;
+
+			S.close();
+
+			S.open("YData.txt");
+
+			S >> Y;
+
+			S.close();
+
+			read = false;
+		}
+
+		// zerujemy funkcje kosztu
+		y = 0;
+
+		for (int i = 0; i < m; ++i)
+		{
+		//Predykcja modelu:
+		//h_theta(x_1) = theta^T * x_i
+		matrix h = trans(x) * X[i];
+		
+		//Roznica miedzy predykcja i pomiarem.
+		matrix error = h - Y(0, i);
+
+		// Sumujemy kwadraty bledow.
+			y = y + pow(error, 2);
+		}
+
+		// Dzielimy przez 2m.
+		y = y / (2.0 * m);
+	}
+	else
+	{
+		// Funkcja podczas poszukiwania kroku.
+		// Przeksztalcamy problem jednowymiarowy
+		// do pelnego wektora wspolczynnikow theta.
+		y = ff4R(ud2[0] + x * ud2[1], ud1);
+	}
+
+	return y;
+}
+
+matrix gf4R(matrix x, matrix ud1, matrix ud2)
+{
+	// Liczba pomiarow.
+	int m = 100;
+
+	// Liczba parametrow theta.
+	int n = get_len(x);
+
+	// Gradient ma 5 elementow.
+	matrix g(n, 1);
+
+	// Dane uczace.
+	static matrix X(n, m), Y(1, m);
+
+	static bool read = true;
+
+	if (read)
+	{
+		ifstream S("XData.txt");
+
+		S >> X;
+		S.close();
+
+		S.open("YData.txt");
+
+		S >> Y;
+		S.close();
+
+		read = false;
+	}
+
+	// Przechodzimy przez wszystkie parametry theta.
+	for (int j = 0; j < n; ++j)
+	{
+		// Dla danego parametru sumujemy
+		// wplyw wszystkich 100 pomiarow.
+		for (int i = 0; i < m; ++i)
+		{
+			// Predykcja dla pomiaru i.
+			matrix h = trans(x) * X[i];
+
+			// Blad predykcji.
+			matrix error = h - Y(0, i);
+
+			// Dodajemy pochodna czastkowa.
+			g(j) = g(j) +
+				m2d(X(j, i) * error);
+		}
+
+		// Dzielimy przez liczbe pomiarow.
+		g(j) = g(j) / m;
+	}
+
+	return g;
+}
+
+matrix df4(double t, matrix Y, matrix ud1, matrix ud2)
+{
+	matrix dY(2, 1);
+	double C = 0.47, r = 0.12, m = 0.6, ro = 1.2, g = 9.81;
+	double S = M_PI * r * r,
+		D = 0.5 * C * ro * S * Y(1) * abs(Y(1));
+	dY(0) = Y(1);
+	dY(1) = (-m * g - D) / m;
+	return dY;
+}
 
 
 

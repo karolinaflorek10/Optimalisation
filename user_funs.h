@@ -29,3 +29,11 @@ matrix ff3R(matrix, matrix = NAN, matrix = NAN);
 
 // Układ równań różniczkowych opisujący ruch piłki.
 matrix df3(double, matrix, matrix = NAN, matrix = NAN);
+
+// Laboratorium 4
+matrix ff4T(matrix, matrix = NAN, matrix = NAN);
+matrix gf4T(matrix, matrix = NAN, matrix = NAN);
+matrix Hf4T(matrix, matrix = NAN, matrix = NAN);
+matrix ff4R(matrix, matrix = NAN, matrix = NAN);
+matrix gf4R(matrix, matrix = NAN, matrix = NAN);
+matrix df4(double, matrix, matrix = NAN, matrix = NAN);
