@@ -545,6 +545,7 @@ matrix df3(double t, matrix Y, matrix ud1, matrix ud2)
     return dY;
 }
 
+// ------- LAB 4 ---------
 //------------------------
 // Funkcje do zaimplementowania:
 // 1. ff4T() - testowa funkcja celu

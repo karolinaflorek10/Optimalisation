@@ -742,7 +742,7 @@ solution sym_NM(matrix(*ff)(matrix, matrix, matrix), matrix x0,
 
 
 // ################## KOLEJNE LABORATORIA ##################
-
+/*
 solution CG(matrix(*ff)(matrix, matrix, matrix), matrix(*gf)(matrix, matrix, matrix), matrix x0, double h0, double epsilon, int Nmax, matrix ud1, matrix ud2)
 {
     try
@@ -819,7 +819,7 @@ solution EA(matrix(*ff)(matrix, matrix, matrix), int N, matrix lb, matrix ub, in
     }
 }
 
-
+*/
 // ----------------- LAB 4 ------------------------
 //--------------------------------------------------
 //metoda najszybszego spadku

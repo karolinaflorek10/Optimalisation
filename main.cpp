@@ -18,6 +18,7 @@ void lab1();
 void lab2();
 void lab3();
 void lab4();
+void lab4Generate();
 void lab5();
 void lab6();
 string to_csv_str(double val)
@@ -35,7 +36,9 @@ int main()
 {
 	try
 	{
-		lab3();
+        lab4Generate();
+		lab4();
+
 	}
 	catch (string EX_INFO)
 	{
@@ -938,9 +941,125 @@ void lab3()
 }
 
 void lab4()
-{
 
+{
+	double epsilon, h;
+	int Nmax;
+	matrix x0;
+	solution opt;
+	if (0) // Funkcja testowa
+	{
+		epsilon = 1e-3;
+		h = 0.05;
+		cout << h << endl << endl;
+		Nmax = 5000;
+		x0 = 4 * rand_mat(2, 1) - 2;
+		cout << x0 << endl << endl;
+		opt = SD(ff4T, gf4T, x0, h, epsilon, Nmax);
+		cout << opt << endl << endl;
+		solution::clear_calls();
+		opt = CG(ff4T, gf4T, x0, h, epsilon, Nmax);
+		cout << opt << endl << endl;
+		solution::clear_calls();
+		opt = Newton(ff4T, gf4T, Hf4T, x0, h, epsilon, Nmax);
+		cout << opt << endl << endl;
+		solution::clear_calls();
+	}
+	if (0) // Regresja liniowa
+	{
+		epsilon = 1e-3, h = -0.1;
+		Nmax = 10000;
+		x0 = randn_mat(5, 1);
+		opt = SD(ff4R, gf4R, x0, h, epsilon, Nmax);
+		cout << opt << endl << endl;
+		solution::clear_calls();
+		opt = CG(ff4R, gf4R, x0, h, epsilon, Nmax);
+		cout << opt << endl << endl;
+
+		matrix X(5, 100), Y(1, 100), h(1, 100);
+		ifstream Sin("XData.txt");
+		Sin >> X;
+		Sin.close();
+		Sin.open("YData.txt");
+		Sin >> Y;
+		Sin.close();
+		h = trans(opt.x) * X;
+		ofstream Sout("lab4Wyniki.csv");
+		matrix out = hcat(hcat(trans(get_row(X, 1)), trans(Y)), trans(h));
+		Sout << out << endl;
+		Sout.close();
+		double MAE = 0;
+		for (int i = 0; i < 100; ++i)
+			MAE = abs(m2d(h(0, i) - Y(0, i)));
+		cout << endl << MAE << endl << endl;
+	}
+	if (1) // Test funkcji celu
+	{
+		matrix X(5, 100), Y(1, 100), J, dJ(5, 1), theta(5, 1, 0.1);
+		ifstream Sin("XData.txt");
+		Sin >> X;
+		Sin.close();
+		Sin.open("YData.txt");
+		Sin >> Y;
+		Sin.close();
+		J = ff4R(theta);
+		dJ = gf4R(theta);
+		cout << J << endl << endl;
+		cout << dJ << endl;
+	}
 }
+
+void lab4Generate()
+{
+	char z;
+	cout << "Czy na pewno chcesz generowac nowe dane uczace [t/n]? Stare zostana nadpisane!" << endl;
+	cin >> z;
+	if (z != 't')
+	{
+		cout << "Nie generuje nowych danych." << endl;
+		return;
+	}
+	cout << "Generuje nowe dane." << endl;
+	double hmin = 1, dh = 1, hmax = 100;
+	int m = static_cast<int>(floor((hmax - hmin) / dh) + 1);
+	matrix h(m, 1, hmin);
+	for (int i = 1; i < m; ++i)
+		h(i) = h(i - 1) + dh;
+	int n = 4;
+	matrix X(n + 1, m);
+	matrix Y(1, m);
+	matrix* y, y0(2, 1);
+	for (int i = 0; i < m; ++i)
+	{
+		X(0, i) = 1;
+		X(1, i) = h(i) / hmax;
+		for (int j = 2; j < n + 1; ++j)
+			X(j, i) = pow(X(1, i), j);
+		y0(0) = h(i);
+		y = solve_ode(df4, 0, 0.005, ceil(h(i) / 20) + 4, y0);
+		int yn = get_len(y[0]);
+		for (int j = 0; j <= yn; ++j)
+		{
+			if (y[1](j, 0) < 0)
+			{
+				Y(0, i) = abs(y[1](j, 1)) + 0.05 * m2d(randn_mat()) * abs(y[1](j, 1));
+				break;
+			}
+		}
+		y[0].~matrix();
+		y[1].~matrix();
+	}
+	ofstream Sout("lab4Dane.csv");
+	Sout << hcat(trans(get_row(X, 1)), trans(Y)) << endl;
+	Sout.close();
+	Sout.open("XData.txt");
+	Sout << X;
+	Sout.close();
+	Sout.open("YData.txt");
+	Sout << Y;
+	Sout.close();
+}
+
 
 void lab5()
 {
